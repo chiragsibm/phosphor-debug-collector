@@ -28,6 +28,7 @@ namespace internal
 
 void Manager::create(Type type, std::vector<std::string> fullPaths)
 {
+  	log<level::ERR>("In Manager::create");
     dumpMgr.phosphor::dump::Manager::captureDump(type, fullPaths);
 }
 
@@ -35,6 +36,7 @@ void Manager::create(Type type, std::vector<std::string> fullPaths)
 
 uint32_t Manager::createDump()
 {
+  	log<level::ERR>("In Manager::createDump");
     std::vector<std::string> paths;
     return captureDump(Type::UserRequested, paths);
 }
@@ -42,6 +44,7 @@ uint32_t Manager::createDump()
 uint32_t Manager::captureDump(Type type,
                               const std::vector<std::string>& fullPaths)
 {
+  	log<level::ERR>("Enter Manager::captureDump");
     // Get Dump size.
     auto size = getAllowedSize();
 
@@ -85,12 +88,13 @@ uint32_t Manager::captureDump(Type type,
         log<level::ERR>("Error occurred during fork", entry("ERRNO=%d", error));
         elog<InternalFailure>();
     }
-
+	log<level::ERR>("Exit Manager::captureDump");
     return ++lastEntryId;
 }
 
 void Manager::createEntry(const fs::path& file)
 {
+  	log<level::ERR>("Enter Manager::createEntry");
     // Dump File Name format obmcdump_ID_EPOCHTIME.EXT
     static constexpr auto ID_POS = 1;
     static constexpr auto EPOCHTIME_POS = 2;
@@ -98,7 +102,7 @@ void Manager::createEntry(const fs::path& file)
 
     std::smatch match;
     std::string name = file.filename();
-
+	log<level::ERR>(name.c_str());
     if (!((std::regex_search(name, match, file_regex)) && (match.size() > 0)))
     {
         log<level::ERR>("Invalid Dump file name",
@@ -111,6 +115,7 @@ void Manager::createEntry(const fs::path& file)
 
     try
     {
+	  	log<level::ERR>("Trace 1 Manager::createEntry");
         auto id = stoul(idString);
         // Entry Object path.
         auto objPath = fs::path(OBJ_ENTRY) / std::to_string(id);
@@ -125,15 +130,18 @@ void Manager::createEntry(const fs::path& file)
         log<level::ERR>(e.what());
         return;
     }
+	log<level::ERR>("Exit Manager::createEntry");
 }
 
 void Manager::erase(uint32_t entryId)
 {
+  	log<level::ERR>("In Manager::erase");
     entries.erase(entryId);
 }
 
 void Manager::deleteAll()
 {
+  	log<level::ERR>("In Manager::deleteAll");
     auto iter = entries.begin();
     while (iter != entries.end())
     {
@@ -145,6 +153,7 @@ void Manager::deleteAll()
 
 void Manager::watchCallback(const UserMap& fileInfo)
 {
+  	log<level::ERR>("Enter Manager::watchCallback");
     for (const auto& i : fileInfo)
     {
         // For any new dump file create dump entry object
@@ -158,6 +167,7 @@ void Manager::watchCallback(const UserMap& fileInfo)
         // Start inotify watch on newly created directory.
         else if ((IN_CREATE == i.second) && fs::is_directory(i.first))
         {
+		  	log<level::ERR>("Trace 1, Manager::watchCallback");
             auto watchObj = std::make_unique<Watch>(
                 eventLoop, IN_NONBLOCK, IN_CLOSE_WRITE, EPOLLIN, i.first,
                 std::bind(std::mem_fn(&phosphor::dump::Manager::watchCallback),
@@ -166,25 +176,30 @@ void Manager::watchCallback(const UserMap& fileInfo)
             childWatchMap.emplace(i.first, std::move(watchObj));
         }
     }
+	log<level::ERR>("Exit Manager::watchCallback");
 }
 
 void Manager::removeWatch(const fs::path& path)
 {
+  	log<level::ERR>("In Manager::removeWatch");
     // Delete Watch entry from map.
     childWatchMap.erase(path);
 }
 
 void Manager::restore()
 {
+  	log<level::ERR>("Enter Manager::restore");
     fs::path dir(BMC_DUMP_PATH);
     if (!fs::exists(dir) || fs::is_empty(dir))
     {
+	  	log<level::ERR>("Trace 1 Manager::restore, dir not valid");
         return;
     }
 
     // Dump file path: <BMC_DUMP_PATH>/<id>/<filename>
     for (const auto& p : fs::directory_iterator(dir))
     {
+	  	log<level::ERR>("Trace 2 Manager::restore, directory_iterator");
         auto idStr = p.path().filename().string();
 
         // Consider only directory's with dump id as name.
@@ -198,14 +213,17 @@ void Manager::restore()
             // Create dump entry d-bus object.
             if (fileIt != fs::end(fileIt))
             {
+			  	log<level::ERR>("Trace 3 Manager::restore, createEntry");
                 createEntry(fileIt->path());
             }
         }
     }
+	log<level::ERR>("Exit Manager::restore");
 }
 
 size_t Manager::getAllowedSize()
 {
+  	log<level::ERR>("Enter Manager::getAllowedSize");
     using namespace sdbusplus::xyz::openbmc_project::Dump::Create::Error;
     using Reason = xyz::openbmc_project::Dump::Create::QuotaExceeded::REASON;
 
@@ -237,12 +255,13 @@ size_t Manager::getAllowedSize()
     {
         size = BMC_DUMP_MAX_SIZE;
     }
-
+	log<level::ERR>("Exit Manager::getAllowedSize");
     return size;
 }
 
 void Manager::notify(NewDump::DumpType dumpType, uint32_t dumpId, uint64_t size)
 {
+  	log<level::ERR>("Enter Manager::notify");
     // Get the timestamp
     auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                   std::chrono::system_clock::now().time_since_epoch())
@@ -254,6 +273,7 @@ void Manager::notify(NewDump::DumpType dumpType, uint32_t dumpId, uint64_t size)
     entries.insert(std::make_pair(
         id, std::make_unique<system::Entry>(bus, objPath.c_str(), id, ms, size,
                                             dumpId, *this)));
+	log<level::ERR>(objPath.c_str());
     lastEntryId++;
 }
 

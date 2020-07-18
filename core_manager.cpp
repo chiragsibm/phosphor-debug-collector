@@ -19,8 +19,8 @@ using namespace std;
 
 void Manager::watchCallback(const UserMap& fileInfo)
 {
+  	log<level::ERR>("Enter core watchCallback");
     vector<string> files;
-
     for (const auto& i : fileInfo)
     {
         namespace fs = std::experimental::filesystem;
@@ -37,6 +37,8 @@ void Manager::watchCallback(const UserMap& fileInfo)
         */
         if ("core" == name.substr(0, name.find('.')))
         {
+		  	log<level::ERR>("Trace1 core watchCallback, core file name");
+		  	log<level::ERR>(name.c_str());
             // Consider only file name start with "core."
             files.push_back(file);
         }
@@ -44,19 +46,21 @@ void Manager::watchCallback(const UserMap& fileInfo)
 
     if (!files.empty())
     {
+	  	log<level::ERR>("Trace2 core watchCallback, calling createHelper as file is not empty");
         createHelper(files);
     }
+	log<level::ERR>("Exit core watchCallabck");
 }
 
 void Manager::createHelper(const vector<string>& files)
 {
+  	log<level::ERR>("Enter core createHelper");
     constexpr auto MAPPER_BUSNAME = "xyz.openbmc_project.ObjectMapper";
     constexpr auto MAPPER_PATH = "/xyz/openbmc_project/object_mapper";
     constexpr auto MAPPER_INTERFACE = "xyz.openbmc_project.ObjectMapper";
     constexpr auto IFACE_INTERNAL("xyz.openbmc_project.Dump.Internal.Create");
     constexpr auto APPLICATION_CORED =
         "xyz.openbmc_project.Dump.Internal.Create.Type.ApplicationCored";
-
     auto b = sdbusplus::bus::new_default();
     auto mapper = b.new_method_call(MAPPER_BUSNAME, MAPPER_PATH,
                                     MAPPER_INTERFACE, "GetObject");
@@ -69,9 +73,11 @@ void Manager::createHelper(const vector<string>& files)
         return;
     }
 
+	log<level::ERR>("Trace1 Core createHelper, After method_call GETOBJECT");
     map<string, vector<string>> mapperResponse;
     try
     {
+	  	log<level::ERR>("Trace2 core createHelper before, mapperResponseMsg.read");
         mapperResponseMsg.read(mapperResponse);
     }
     catch (const sdbusplus::exception::SdBusError& e)
@@ -87,11 +93,13 @@ void Manager::createHelper(const vector<string>& files)
         return;
     }
 
+	log<level::ERR>("Trace3 Core createHelper, Before calling method_call Create");
     const auto& host = mapperResponse.cbegin()->first;
     auto m =
         b.new_method_call(host.c_str(), OBJ_INTERNAL, IFACE_INTERNAL, "Create");
     m.append(APPLICATION_CORED, files);
     b.call_noreply(m);
+	log<level::ERR>("Exit core createHealper");
 }
 
 } // namespace core
